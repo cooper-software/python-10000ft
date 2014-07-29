@@ -1,31 +1,28 @@
 import requests
 import json
 from datetime import date, datetime
+from dateutil import parser as date_parser
 
 TEST_URL = 'http://tenthousandfeettest/'
 VNEXT_URL = 'https://vnext-api.10000ft.com/api/v1/'
-PREPROD_URL = 'https://pre-prod-api.10000ft.com/'
+PREPROD_URL = 'https://pre-prod-api.10000ft.com/api/v1/'
 PROD_URL = 'https://api.10000ft.com/api/v1/'
 
-collections = [
-    {
-        'name': 'users',
+collections = {
+    'users': {
         'methods': {
             'list': { 'optional': ['fields'] },
             'show': { 'optional': ['fields'] },
             'create': { 'required': ['email', 'first_name', 'last_name'] }, 
             'update': { 'optional': ['email', 'first_name', 'last_name'] }
         },
-        'collections': [
-            {
-                'name': 'statuses',
-                'methods': {
-                    
-                }
+        'collections': {
+            'statuses': {
+                'methods': {}
             }
-        ]
+        }
     }
-]
+}
 
 
 class HTTPClient(object):
@@ -58,7 +55,20 @@ class CollectionClient(object):
         self.name = name
         self.http = http
         self.methods = methods
-        self.collections = collections
+        
+        for subname, collection in collections.items():
+            setattr(self, subname, self.create_sub_collection_factory(subname, collection))
+        
+        
+    def create_sub_collection_factory(self, name, desc):
+        def factory(object_id):
+            return CollectionClient(
+                        self.http, 
+                        '%s/%s/%s' % (self.name, object_id, name),
+                        desc.get('methods', {}),
+                        desc.get('collections', {})
+                    )
+        return factory
         
         
     def list(self, **kwargs):
@@ -79,12 +89,6 @@ class CollectionClient(object):
         
     def delete(self, object_id, **kwargs):
         return self.request(self.http.delete, 'delete', object_id, kwargs)
-        
-        
-    def request(self, http_fn, method, path, kwargs):
-        self.require_method(method)
-        data = self.check_kwargs(method, kwargs)
-        return http_fn(path=self.name + '/' + path, data=data)
         
         
     def require_method(self, name):
@@ -110,18 +114,52 @@ class CollectionClient(object):
                 new_kwargs[o] = v
         
         return new_kwargs
-                
+        
+        
+    def request(self, http_fn, method, path, kwargs):
+        self.require_method(method)
+        data = self.check_kwargs(method, kwargs)
+        if not isinstance(path, basestring):
+            path = str(path)
+        res = http_fn(path=self.name + '/' + path, data=data)
+        return self.get_response(method, res)
+        
+        
+    def get_response(self, method, res):
+        if res.status_code not in (200, 201):
+            raise Exception, "Error %d %s: %s" % (res.status_code, res.reason, res.text)
+        data = res.json().get('data')
+        self.process_response_data(method, data)
+        return data
+        
+        
+    def process_response_data(self, method, data):
+        process_rules = self.methods[method].get('process', {})
+        for k,fn in process_rules.items():
+            parts = k.split('.')
+            value = get_in_dict(data, parts)
+            set_in_dict(data, parts, fn(value))
+        return data
+
+
+def get_in_dict(dict, key):
+    return reduce(lambda d, k: d[k], key, dict)
+    
+    
+def set_in_dict(dict, key, value):
+    get_in_dict(dict, key[:-1])[key[-1]] = value
+
 
 
 class TenThousandFeet(object):
     
     def __init__(self, token, endpoint=PROD_URL):
         http = HTTPClient(token, endpoint)
-        for desc in collections:
-            setattr(self, desc['name'], 
+        for name, desc in collections.items():
+            setattr(self, name, 
                 CollectionClient(
                     http,
-                    desc['name'], 
+                    name, 
                     desc.get('methods', []), 
                     desc.get('collections', [])
                 ))
