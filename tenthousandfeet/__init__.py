@@ -1,12 +1,15 @@
 import requests
 import json
 from datetime import date, datetime
-from dateutil import parser as date_parser
+from dateutil.parser import parser as date_parse
+from functools import partial
+
 
 TEST_URL = 'http://tenthousandfeettest/'
 VNEXT_URL = 'https://vnext-api.10000ft.com/api/v1/'
 PREPROD_URL = 'https://pre-prod-api.10000ft.com/api/v1/'
 PROD_URL = 'https://api.10000ft.com/api/v1/'
+
 
 collections = {
     'users': {
@@ -135,6 +138,13 @@ class CollectionClient(object):
         
     def process_response_data(self, method, data):
         process_rules = self.methods[method].get('process', {})
+        if isinstance(data, list):
+            return map(partial(self.process_response_data_item, process_rules), data)
+        else:
+            return self.process_response_data_item(process_rules, data)
+        
+        
+    def process_response_data_item(self, process_rules, data):
         for k,fn in process_rules.items():
             parts = k.split('.')
             value = get_in_dict(data, parts)

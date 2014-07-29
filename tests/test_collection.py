@@ -2,20 +2,8 @@ import unittest
 from httmock import all_requests, response, HTTMock
 from mock import Mock
 from tenthousandfeet import HTTPClient, CollectionClient
+from . import make_mock_response_obj
 
-
-class MockHTTPResponse(object):
-    def __init__(self):
-        self.status_code = 200
-        self.text = 'foo'
-        self._json = {}
-        
-    def json(self):
-        return self._json
-        
-
-def make_mock_response_obj():
-    return Mock(return_value=MockHTTPResponse())
 
 
 class TestCollection(unittest.TestCase):
@@ -94,6 +82,29 @@ class TestCollection(unittest.TestCase):
             res = client.show(123)
         
         self.assertEqual(res['foo']['bar'], 2)
+        
+        
+    def test_response_processing_list(self):
+        def add_one(val):
+            return val + 1
+        
+        client = CollectionClient(self.http, 'foo', {'show': {'process': {'foo.bar': add_one } } }, {})
+        
+        @all_requests
+        def mock_response(url, request):
+            return response(200, { 
+                'data': [
+                    {'foo': {'bar': 1}},
+                    {'foo': {'bar': 5}}
+                ]},
+                {'content-type':'application/json'}
+            )
+        
+        with HTTMock(mock_response):
+            res = client.show(123)
+        
+        self.assertEqual(res[0]['foo']['bar'], 2)
+        self.assertEqual(res[1]['foo']['bar'], 6)
         
         
     def test_sub_collections(self):
