@@ -318,7 +318,8 @@ class CollectionClient(object):
                 value = get_in_dict(data, parts)
             except KeyError:
                 continue
-            set_in_dict(data, parts, fn(value))
+            if value is not None:
+                set_in_dict(data, parts, fn(value))
         return data
         
         

@@ -124,6 +124,25 @@ class TestCollection(unittest.TestCase):
         self.assertEqual(res['notbar'], 666)
         
         
+    def test_response_processing_ignore_empty(self):
+        def add_one(val):
+            return val + 1
+        
+        client = CollectionClient(self.http, 'foo', {'show': {'process': {'foo.bar': add_one } } }, {})
+        
+        @all_requests
+        def mock_response(url, request):
+            return response(200, { 
+                'data': {'foo':{'bar':None}}},
+                {'content-type':'application/json'}
+            )
+        
+        with HTTMock(mock_response):
+            res = client.show(123)
+        
+        self.assertEqual(res['foo']['bar'], None)
+        
+        
     def test_sub_collections(self):
         client = CollectionClient(
             self.http,
