@@ -185,3 +185,10 @@ class TestCollection(unittest.TestCase):
         client.bar('foo#1').baz('bar#1').list()
         client.http.get.assert_called_with(path='foo/foo#1/bar/bar#1/baz/', data={})
         
+        
+    def test_remove_prefixed_underscores(self):
+        client = CollectionClient(self.http, 'foo', {'list': {} }, {})
+        client.http.get = make_mock_response_obj()
+        client.list(___from='from')
+        client.http.get.assert_called_with(path='foo/', data={'from':'from'})
+        

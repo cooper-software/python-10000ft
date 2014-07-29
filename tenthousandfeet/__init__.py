@@ -3,6 +3,7 @@ import json
 from datetime import date, datetime
 from dateutil.parser import parse as date_parse
 from functools import partial
+import re
 
 
 TEST_URL = 'http://tenthousandfeettest/'
@@ -248,6 +249,8 @@ class HTTPClient(object):
 
 class CollectionClient(object):
     
+    underscore_replace_pattern = re.compile('^(_+)')
+    
     def __init__(self, http, name, methods, collections):
         self.name = name
         self.http = http
@@ -335,6 +338,7 @@ class CollectionClient(object):
         new_kwargs = {}
         
         for k,v in kwargs.items():
+            k = self.underscore_replace_pattern.sub('', k)
             new_kwargs[k] = self.serialize_arg(v)
         
         for r in required:
