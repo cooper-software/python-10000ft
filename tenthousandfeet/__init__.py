@@ -109,14 +109,23 @@ class CollectionClient(object):
             v = kwargs.get(r)
             if v is None:
                 raise Exception, "%s is a required argument of %s.%s" % (r, self.name, method)
-            new_kwargs[r] = v
+            new_kwargs[r] = self.serialize_arg(v)
         
         for o in optional:
             v = kwargs.get(o)
             if v:
-                new_kwargs[o] = v
+                new_kwargs[o] = self.serialize_arg(v)
         
         return new_kwargs
+        
+        
+    def serialize_arg(self, value):
+        if isinstance(value, datetime):
+            return value.strftime('%Y-%m-%dT%H:%M:%S%z')
+        elif isinstance(value, date):
+            return value.strftime('%Y-%m-%d')
+        else:
+            return value
         
         
     def request(self, http_fn, method, path, kwargs):

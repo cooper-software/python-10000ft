@@ -37,3 +37,19 @@ class TestDates(unittest.TestCase):
         res = client.show(123)
         self.assertEqual(res['foo'], datetime(1982, 9, 6, 0, 0, 0, 0))
         self.assertEqual(res['bar'], datetime(1982, 9, 6, 8, 34, 0, 0, tzinfo=tzutc()))
+        
+        
+    def test_serialization(self):
+        client = CollectionClient(
+            self.http,
+            'foo',
+            {
+                'show': {
+                    'optional': ['date']
+                }
+            },
+            {}
+        )
+        client.http.get = make_mock_response_obj()
+        res = client.show(123, date=datetime(1982, 9, 6, 8, 34, 0, 0, tzinfo=tzutc()))
+        client.http.get.assert_called_with(path='foo/123', data={'date':'1982-09-06T08:34:00+0000'})
