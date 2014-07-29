@@ -28,6 +28,13 @@ collections = {
 }
 
 
+class Error(Exception):
+    
+    def __init__(self, status_code, message):
+        self.status_code = status_code
+        super(Exception, self).__init__(message)
+
+
 class HTTPClient(object):
     
     def __init__(self, token, endpoint):
@@ -37,7 +44,15 @@ class HTTPClient(object):
         self.session.headers['auth'] = token
         
     def request(self, method, path, data):
-        return method(self.endpoint + path, data=data)
+        res = method(self.endpoint + path, data=data)
+        if res.status_code not in (200, 201):
+            try:
+                message = res.json()['message']
+            except:
+                message = res.reason
+            raise Error(res.status_code, message)
+        else:
+            return res
         
     def get(self, path='', data=None):
         return self.request(self.session.get, path, data)
@@ -94,6 +109,40 @@ class CollectionClient(object):
         return self.request(self.http.delete, 'delete', object_id, kwargs)
         
         
+    def request(self, http_fn, method, path, kwargs):
+        self.require_method(method)
+        data = self.check_kwargs(method, kwargs)
+        if not isinstance(path, basestring):
+            path = str(path)
+        res = http_fn(path=self.name + '/' + path, data=data)
+        return self.get_response(method, res)
+        
+        
+    def get_response(self, method, res):
+        data = res.json().get('data')
+        self.process_response_data(method, data)
+        return data
+        
+        
+    def process_response_data(self, method, data):
+        process_rules = self.methods[method].get('process', {})
+        if isinstance(data, list):
+            return map(partial(self.process_response_data_item, process_rules), data)
+        else:
+            return self.process_response_data_item(process_rules, data)
+        
+        
+    def process_response_data_item(self, process_rules, data):
+        for k,fn in process_rules.items():
+            parts = k.split('.')
+            try:
+                value = get_in_dict(data, parts)
+            except KeyError:
+                continue
+            set_in_dict(data, parts, fn(value))
+        return data
+        
+        
     def require_method(self, name):
         if name not in self.methods:
             raise Exception, "%s does not implement %s" % (self.name, name)
@@ -126,42 +175,6 @@ class CollectionClient(object):
             return value.strftime('%Y-%m-%d')
         else:
             return value
-        
-        
-    def request(self, http_fn, method, path, kwargs):
-        self.require_method(method)
-        data = self.check_kwargs(method, kwargs)
-        if not isinstance(path, basestring):
-            path = str(path)
-        res = http_fn(path=self.name + '/' + path, data=data)
-        return self.get_response(method, res)
-        
-        
-    def get_response(self, method, res):
-        if res.status_code not in (200, 201):
-            raise Exception, "Error %d %s: %s" % (res.status_code, res.reason, res.text)
-        data = res.json().get('data')
-        self.process_response_data(method, data)
-        return data
-        
-        
-    def process_response_data(self, method, data):
-        process_rules = self.methods[method].get('process', {})
-        if isinstance(data, list):
-            return map(partial(self.process_response_data_item, process_rules), data)
-        else:
-            return self.process_response_data_item(process_rules, data)
-        
-        
-    def process_response_data_item(self, process_rules, data):
-        for k,fn in process_rules.items():
-            parts = k.split('.')
-            try:
-                value = get_in_dict(data, parts)
-            except KeyError:
-                continue
-            set_in_dict(data, parts, fn(value))
-        return data
 
 
 def get_in_dict(dict, key):

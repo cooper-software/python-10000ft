@@ -2,9 +2,9 @@ from mock import Mock
 
 
 class MockHTTPResponse(object):
-    def __init__(self, data=None):
-        self.status_code = 200
-        self.text = 'foo'
+    def __init__(self, status_code=200, text='', data=None):
+        self.status_code = status_code
+        self.text = text
         self._data = data if data else {}
         
     def json(self):
