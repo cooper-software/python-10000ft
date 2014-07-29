@@ -7,7 +7,7 @@ This is an unofficial python client for the [10000ft API](http://10kft.github.io
 You can install with `easy_install` or `pip`.
 
 ```sh
-pip install python-10000ft
+pip install tenthousandfeet
 ```
 
 # Usage
