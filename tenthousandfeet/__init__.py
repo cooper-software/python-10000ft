@@ -147,7 +147,10 @@ class CollectionClient(object):
     def process_response_data_item(self, process_rules, data):
         for k,fn in process_rules.items():
             parts = k.split('.')
-            value = get_in_dict(data, parts)
+            try:
+                value = get_in_dict(data, parts)
+            except KeyError:
+                continue
             set_in_dict(data, parts, fn(value))
         return data
 

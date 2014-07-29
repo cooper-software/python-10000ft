@@ -107,6 +107,25 @@ class TestCollection(unittest.TestCase):
         self.assertEqual(res[1]['foo']['bar'], 6)
         
         
+    def test_response_processing_ignore_missing(self):
+        def noop(val):
+            return val
+        
+        client = CollectionClient(self.http, 'foo', {'show': {'process': {'foo.bar': noop } } }, {})
+        
+        @all_requests
+        def mock_response(url, request):
+            return response(200, { 
+                'data': {'notbar':666}},
+                {'content-type':'application/json'}
+            )
+        
+        with HTTMock(mock_response):
+            res = client.show(123)
+        
+        self.assertEqual(res['notbar'], 666)
+        
+        
     def test_sub_collections(self):
         client = CollectionClient(
             self.http,
