@@ -1,7 +1,7 @@
 import requests
 import json
 from datetime import date, datetime
-from dateutil.parser import parser as date_parse
+from dateutil.parser import parse as date_parse
 from functools import partial
 
 
