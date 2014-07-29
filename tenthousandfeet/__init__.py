@@ -71,7 +71,8 @@ time_entries = {
             'process': {
                 'date': date_parse
             }
-        }
+        },
+        'delete': {}
     }
 }
 
