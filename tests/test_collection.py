@@ -34,8 +34,6 @@ class TestCollection(unittest.TestCase):
         client.http.get.assert_called_with(path='foo/', data={})
         client.list(bar=123)
         client.http.get.assert_called_with(path='foo/', data={'bar':123})
-        client.list(bar=123,baz='skidoo')
-        client.http.get.assert_called_with(path='foo/', data={'bar':123})
         
         
     def test_show(self):

@@ -14,7 +14,7 @@ class TestAuth(unittest.TestCase):
         @all_requests
         def response(url, request):
             request_headers['auth'] = request.headers['auth']
-            return '{}'
+            return '{"data":{}}'
         
         with HTTMock(response):
             client.users.list()

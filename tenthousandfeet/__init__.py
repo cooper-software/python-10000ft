@@ -10,19 +10,198 @@ VNEXT_URL = 'https://vnext-api.10000ft.com/api/v1/'
 PREPROD_URL = 'https://pre-prod-api.10000ft.com/api/v1/'
 PROD_URL = 'https://api.10000ft.com/api/v1/'
 
+project_process_fields = {
+    'created_at': date_parse,
+    'deleted_at': date_parse,
+    'ends_at': date_parse,
+    'secureurl_expiration': date_parse,
+    'starts_at': date_parse,
+    'updated_at': date_parse
+}
+
+project_methods = {
+    'list': {
+        'optional': ['from', 'to', 'fields', 'project_code', 'phase_name', 'with_archived', 'with_phases'],
+        'process': project_process_fields
+    },
+    'show': {
+        'optional': ['fields']
+    },
+    'create': {
+        'required': ['name'],
+        'optional': ['client', 'description', 'phase_name', 'project_code', 'settings', 'thumbnail'],
+        'process': project_process_fields
+    },
+    'update': {
+        'optional': ['name', 'client', 'description', 'phase_name', 'project_code', 'settings', 'thumbnail'],
+        'process': project_process_fields
+    },
+    'delete': {}
+}
+
+user_process_fields = {
+    'deleted_at': date_parse,
+    'hire_date': date_parse,
+    'termination_date': date_parse
+}
+
+time_entries = {
+    'methods': {
+        'list': {
+            'optional': ['from', 'to', 'with_suggestions'],
+            'process': {
+                'date': date_parse
+            }
+        },
+        'show': {
+            'process': {
+                'date': date_parse
+            }
+        },
+        'create': {
+            'required': ['date', 'hours'],
+            'optional': ['leave_id', 'project_id', 'assignable_id'],
+            'process': {
+                'date': date_parse
+            }
+        },
+        'update': {
+            'optional': ['date', 'hours', 'leave_id', 'project_id', 'assignable_id'],
+            'process': {
+                'date': date_parse
+            }
+        }
+    }
+}
+
+assignment_process_fields = {
+    'ends_at': date_parse,
+    'starts_at': date_parse
+}
+
+budget_item_process_fields = {
+    'created_at': date_parse,
+    'updated_at': date_parse
+}
+
+leave_type_process_fields = {
+    'deleted_at': date_parse,
+    'created_at': date_parse,
+    'updated_at': date_parse
+}
+
+tags = {
+    'methods': {
+        'list': {},
+        'create': { 'optional': ['value'] },
+        'delete': {}
+    }
+}
 
 collections = {
+    'projects': {
+        'methods': project_methods,
+        'collections': {
+            'phases': {
+                'methods': project_methods
+            },
+            'time_entries': time_entries,
+            'budget_items': {
+                'methods': {
+                    'list': {
+                        'required': ['item_type'],
+                        'process': budget_item_process_fields
+                    },
+                    'show': {
+                        'process': budget_item_process_fields
+                    },
+                    'create': {
+                        'required': ['item_type', 'amount'],
+                        'optional': ['project_id', 'assignable_id', 'leave_id'],
+                        'process': budget_item_process_fields
+                    },
+                    'update': {
+                        'optional': ['item_type', 'amount', 'project_id', 'assignable_id', 'leave_id'],
+                        'process': budget_item_process_fields
+                    },
+                    'delete': {}
+                }
+            },
+            'tags': tags,
+            'users': {
+                'methods': {
+                    'list': {
+                        'optional': ['fields'],
+                        'process': user_process_fields
+                    }
+                }
+            }
+        }
+    },
     'users': {
         'methods': {
-            'list': { 'optional': ['fields'] },
-            'show': { 'optional': ['fields'] },
-            'create': { 'required': ['email', 'first_name', 'last_name'] }, 
-            'update': { 'optional': ['email', 'first_name', 'last_name'] }
+            'list': {
+                'optional': ['fields'],
+                'process': user_process_fields
+            },
+            'show': {
+                'optional': ['fields'],
+                'process': user_process_fields
+            },
+            'create': {
+                'required': ['email', 'first_name', 'last_name'],
+                'process': user_process_fields
+            }, 
+            'update': {
+                'optional': ['email', 'first_name', 'last_name'],
+                'process': user_process_fields
+            }
         },
         'collections': {
             'statuses': {
-                'methods': {}
-            }
+                'methods': {
+                    'list': {
+                        'process': {
+                            'created_at': date_parse,
+                            'updated_at': date_parse
+                        }
+                    },
+                    'create': {
+                        'required': ['status'],
+                        'process': {
+                            'created_at': date_parse,
+                            'updated_at': date_parse
+                        }
+                    }
+                }
+            },
+            'time_entries': time_entries,
+            'assignments': {
+                'list': {
+                    'optional': ['from', 'to'],
+                    'process': assignment_process_fields
+                },
+                'show': {
+                    'process': assignment_process_fields
+                },
+                'create': {
+                    'optional': ['starts_at', 'ends_at', 'percent', 'fixed_hours'],
+                    'process': assignment_process_fields
+                },
+                'delete': {}
+            },
+            'tags': tags
+        }
+    },
+    'budget_item_categories': {
+        'methods': {
+            'list': {}
+        }
+    },
+    'leave_types': {
+        'methods': {
+            'list': { 'process': leave_type_process_fields },
+            'show': { 'process': leave_type_process_fields }
         }
     }
 }
@@ -150,20 +329,15 @@ class CollectionClient(object):
         
     def check_kwargs(self, method, kwargs):
         method_desc = self.methods[method]
-        optional = method_desc.get('optional', [])
-        required = method_desc.get('required', [])
+        optional = set(method_desc.get('optional', []))
+        required = set(method_desc.get('required', []))
         new_kwargs = {}
         
-        for r in required:
-            v = kwargs.get(r)
-            if v is None:
-                raise Exception, "%s is a required argument of %s.%s" % (r, self.name, method)
-            new_kwargs[r] = self.serialize_arg(v)
+        for k,v in kwargs.items():
+            new_kwargs[k] = self.serialize_arg(v)
         
-        for o in optional:
-            v = kwargs.get(o)
-            if v:
-                new_kwargs[o] = self.serialize_arg(v)
+        for r in required:
+            assert r in kwargs, "%s is a required argument of %s.%s" % (r, self.name, method)
         
         return new_kwargs
         
@@ -195,7 +369,7 @@ class TenThousandFeet(object):
                 CollectionClient(
                     http,
                     name, 
-                    desc.get('methods', []), 
-                    desc.get('collections', [])
+                    desc.get('methods', {}), 
+                    desc.get('collections', {})
                 ))
             
